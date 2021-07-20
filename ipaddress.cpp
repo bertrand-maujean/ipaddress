@@ -282,6 +282,65 @@ uint64_t ipAddress_c::hash64() { /* renvoie un haché convenable pour des struct
 	}
 }
 
+
+uint64_t ipAddress_c::hash64(int lgMask) { /* renvoie un haché convenable pour des structures genre Bloom ou HyperLogLog, en masquant les bits de poids faible */
+	const uint64_t piHex[] = { 0x243F6A8885A308D3, 0x13198A2E03707344, 0xA4093822299F31D0,	0x082EFA98EC4E6C89 }; /* décimales de pi en hexa */
+
+	uint32_t words_[4] = { words[0], words[1], words[2], words[3] };
+	uint8_t*  bytes_ = (uint8_t*)&words_[0];
+
+	if (version == 4) {
+		lgMask = 32-lgMask;
+	} else if (version == 6) {
+		lgMask = 128-lgMask;
+		assert(0); /* implémentation pas testée */
+	} else {
+		throw error(2); /* pas initialisé */
+	}
+
+
+	int n=15;
+	do {
+		if (lgMask == 0) {
+			break; /* si pas dès le départ, traité par le while en fait */
+		} else if (lgMask < 8) {
+			bytes_[n] &= 0xff<<lgMask; /* rappel : big endian */
+			break;
+		} else {
+			bytes_[n] = 0;
+			lgMask -= 8;
+			n--;
+		}
+	} while (lgMask > 0);
+
+
+	/*printf("(%d.%d.%d.%d)", bytes_[12], bytes_[13], bytes_[14], bytes_[15]);*/
+
+
+	if (hashOk) {
+		return hash;
+	} else {
+		uint64_t h = (words_[3]) + ((uint64_t)words_[3] << 32) + ((uint64_t)words_[3] << 16); /* plus de diffusion pour les IPv4 */
+		h = h + (prefixLen) + ((uint64_t)prefixLen<<32) + ((uint64_t)prefixLen<<16);                           /* prend en compte le prefix len */
+		for (int n=0; n<4; n++) {
+			h = h + (words_[n]) + ((uint64_t)words_[n] << 32) + ((uint64_t)words_[n] << 16);
+			h = h + piHex[n];
+			__asm__("movq    %1, %%rax     ;"  /* middleSquare plus pratique en asm car 128 bits dans rdx:rax */
+					"mulq    %%rax         ;"
+					"shlq    $32, %%rdx    ;"
+					"shrq    $32, %%rax    ;"
+					"orq     %%rdx, %%rax  ;"
+					"movq    %%rax, %0     ;"
+					: "=m" (h)
+					: "m"  (h)
+			);
+		}
+		return h;
+	}
+}
+
+
+
 bool ipAddress_c::isIncluded(ipAddress_c* other) { /* indique si 'this' est inclus dans 'other' fourni en paramètre (subnets bien sûr) */
 	uint8_t otherPrefixLen = other->getPrefixLen();
 	uint8_t thisPrefixLen  = prefixLen;

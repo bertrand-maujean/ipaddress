@@ -50,6 +50,7 @@ public:
 	uint8_t getScope();
 
 	uint64_t hash64();      /* renvoie un haché convenable pour des structures genre Bloom ou HyperLogLog */
+	uint64_t hash64(int);   /* renvoie un haché convenable pour des structures genre Bloom ou HyperLogLog, mais en masquant des bits faibles */
 
 	bool    isIncluded(ipAddress_c*); /* indique si est inclus dans l'autre adresse fournie en paramètre (subnets bien sûr) */
 

@@ -52,5 +52,37 @@ int main(int argc, char* argv[], char **env) {
 	}
 	catch (ipAddress_c::error const& e) {
 		printf("Exception ipAddress::error = %s\n", e.what());
+		exit(EXIT_FAILURE);
 	}
+
+
+	puts("Test de la fonction de hachage");
+
+	try {
+
+		/*
+		ipAddress_c* ip = new ipAddress_c((const char*)"192.168.3.36");
+		int m = 28;
+		printf((const char*)"%s %llx   masqué %d bits : %llx", ip->toString(buffer), ip->hash64(), m, ip->hash64(m));
+		puts("");
+		delete ip;
+		*/
+
+
+		for (int n=0; n<20; n++) {
+			ipAddress_c* ip = new ipAddress_c((uint32_t) random() );
+			int m = 15+random()%17;
+			printf((const char*)"%s %llx   masqué %d bits : %llx", ip->toString(buffer), ip->hash64(), m, ip->hash64(m));
+
+			puts("");
+			delete ip;
+		}
+
+	}
+	catch (ipAddress_c::error const& e) {
+		printf("Exception ipAddress::error = %s\n", e.what());
+		exit(EXIT_FAILURE);
+	}
+
+
 }
