@@ -8,6 +8,10 @@
 #ifndef IPADDRESS_H_
 #define IPADDRESS_H_
 
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -22,6 +26,7 @@ public:
 	ipAddress_c(uint32_t);          /* v4, d'après uint32 network order */
 	ipAddress_c(const uint8_t*, size_t);  /* v4 ou v6, d'après pointeur vers adresse en network order */
 	ipAddress_c(const char*);             /* v4 ou v6, d'après chaine de caractère notations habituelles */
+	ipAddress_c(ipAddress_c*);            /* recopie */
 
 	void setPrefixLen(uint8_t);     /* Si n'a pas été fixé par le constructeur */
 
@@ -54,6 +59,8 @@ public:
 
 	bool    isIncluded(ipAddress_c*); /* indique si est inclus dans l'autre adresse fournie en paramètre (subnets bien sûr) */
 
+	sockaddr_storage* getSockaddr();  /* renvoie un pointeur vers une structure sockaddr_in ou sock_addr_in6, allouée dans l'objet en cours */
+
 private:
 	union {
 		uint8_t  bytes[16]; /* tjs représenté comme IPv6 network order */
@@ -71,6 +78,8 @@ private:
 	uint8_t  prefixLen; /* 0..32 ou 0..128 */
 	uint8_t  version;
 
+	bool             sockOk;   /* = true si sockData est à jour */
+	struct sockaddr_storage sockData;
 };
 
 

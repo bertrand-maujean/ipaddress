@@ -14,7 +14,11 @@
 //#include <netinet/in.h>  /* structure entête L3 */
 //#include <netinet/ip.h>
 //#include <netinet/ip6.h>
-#include <cassert>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+
+
 
 /* lib C++ */
 //#include <vector>
@@ -23,6 +27,7 @@
 #include <cstdio> /* sscanf() */
 //#include <cerrno>
 #include <cstring>
+#include <cassert>
 
 /* libs spécifiques */
 
@@ -65,6 +70,19 @@ const char* ipAddress_c::error::what() const noexcept {
  * implémentation de la classe ipAddress_c
  */
 
+ipAddress_c::ipAddress_c(ipAddress_c* modele) {
+	scope       = modele->scope;
+	version     = modele->version;
+	memcpy(bytes, modele->bytes, 16);
+	prefixLen   = modele->prefixLen;
+	hashOk      = modele->hashOk;
+	hash        = modele->hash;
+	sockOk      = modele->sockOk;
+	memcpy(&sockData, &modele->sockData , sizeof(sockaddr_storage));
+}
+
+
+
 ipAddress_c::ipAddress_c(uint32_t ipv4_) { /* v4, d'après uint32 network order */
 	scope       = scopeUnspecified;
 	version     = 4;
@@ -73,12 +91,14 @@ ipAddress_c::ipAddress_c(uint32_t ipv4_) { /* v4, d'après uint32 network order 
 	prefixLen   = 32;
 	hashOk      = false;
 	hash        = 0;
+	sockOk      = false;
 }
 ipAddress_c::ipAddress_c(const uint8_t* addr, size_t len) { /* v4 ou v6, d'après pointeur vers adresse en network order */
 	scope       = scopeUnspecified;
 	memset(bytes, 0, 16);
 	hashOk      = false;
 	hash        = 0;
+	sockOk      = false;
 
 	if (len == 4) {
 		version     = 4;
@@ -98,6 +118,7 @@ ipAddress_c::ipAddress_c(const char* str) { /* v4 ou v6, d'après chaine de cara
 	hashOk      = false;
 	hash        = 0;
 	prefixLen   = 253;
+	sockOk      = false;
 
 	/* petite stat des caractères présents pour détecter v4/v6 et si CIDR */
 	size_t nbCars[5] = {0,0,0,0,0}; /* 0->chiffres, 1->a..f, 2->:, 3->., 4->/ */
@@ -164,6 +185,27 @@ ipAddress_c::ipAddress_c(const char* str) { /* v4 ou v6, d'après chaine de cara
 	}
 }
 
+
+sockaddr_storage* ipAddress_c::getSockaddr() {
+	if (!sockOk) {
+		memset(&sockData, 0, sizeof(sockaddr_storage));
+		if (version == 4) {
+			struct sockaddr_in *ipv4 = (struct sockaddr_in *)&sockData;
+			ipv4->sin_family      = AF_INET;
+			ipv4->sin_addr.s_addr = words[3];
+		} else if (version == 6) {
+			struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&sockData;
+			ipv6->sin6_family      = AF_INET6;
+			memcpy(ipv6->sin6_addr.s6_addr, bytes, 16);
+		} else {
+			throw error(2); /* pas initialisé */
+		}
+		sockOk=true;
+	}
+	return &sockData;
+}
+
+
 void ipAddress_c::setPrefixLen(uint8_t len) { /* Si n'a pas été fixé par le constructeur */
 	hashOk      = false;
 
@@ -182,6 +224,7 @@ void ipAddress_c::setPrefixLen(uint8_t len) { /* Si n'a pas été fixé par le c
 	} else {
 		throw(error(3)); /* erreur inconune */
 	}
+	sockOk      = false;
 }
 
 uint8_t ipAddress_c::getVersion() {
